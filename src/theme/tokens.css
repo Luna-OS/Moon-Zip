@@ -1,0 +1,712 @@
+@import "tailwindcss";
+
+/*
+ * Moon Zip design tokens — the same night-sky palette as MoonDisk,
+ * MoonTask, Moon Browser and Moon Explorer (see docs/theme.md for where each value
+ * comes from).
+ *
+ * Tailwind v4 is configured CSS-first: `@theme` below is the single source
+ * of truth for Tailwind's generated utility classes (bg-lavender-400, …).
+ * Keep it identical to the sibling apps so every Moon app is one family.
+ *
+ * The semantic custom properties further down (--mz-*) are the ones
+ * components reach for; they carry the night/day switch and keep intent
+ * ("this is a surface") separate from the raw palette.
+ */
+@theme {
+  --color-night-950: #0b0920;
+  --color-night-900: #141030;
+  --color-night-800: #1d1742;
+  --color-violet-700: #3b2e6b;
+  --color-lavender-400: #b9aefb;
+  --color-lavender-300: #d6cffd;
+  --color-moon-100: #f4f1ff;
+  --color-mint-400: #7fe3c6;
+  --color-sky-300: #9ad7f5;
+  --color-peach-300: #f7b89a;
+  --color-cream-100: #fbf7f0;
+  --color-success-400: #7fe3c6;
+  --color-warning-400: #f3c766;
+  --color-error-500: #e5626b;
+
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+
+  --font-mono:
+    ui-monospace, "Cascadia Code", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+
+  --mz-bg: var(--color-night-950);
+  --mz-text: var(--color-cream-100);
+  --mz-text-muted: color-mix(in srgb, var(--color-cream-100) 62%, transparent);
+  --mz-text-faint: color-mix(in srgb, var(--color-cream-100) 40%, transparent);
+  --mz-border: color-mix(in srgb, var(--color-lavender-400) 18%, transparent);
+  --mz-border-strong: color-mix(in srgb, var(--color-lavender-400) 36%, transparent);
+  --mz-accent: var(--color-lavender-300);
+  --mz-focus-ring: var(--color-lavender-300);
+  --mz-glass-top: color-mix(in srgb, var(--color-night-800) 62%, transparent);
+  --mz-glass-bottom: color-mix(in srgb, var(--color-night-900) 70%, transparent);
+  --mz-solid: var(--color-night-900);
+  --mz-popover: #181338;
+  --mz-inset: color-mix(in srgb, var(--color-night-950) 55%, transparent);
+  --mz-hover: rgb(255 255 255 / 0.04);
+  --mz-selected: color-mix(in srgb, var(--color-lavender-400) 15%, transparent);
+  --mz-warning: var(--color-warning-400);
+  --mz-danger: #f28b92;
+  --mz-success: var(--color-mint-400);
+
+  /* The window frame (custom title bar) — same values as Moon Browser's
+   * tab strip, so the native window buttons match (frame-colors.ts). */
+  --mz-frame: #0b0920;
+  --mz-toolbar: #141030;
+
+  /* File kinds in the list (always paired with a name / type label). */
+  --mz-kind-folder: var(--color-lavender-400);
+  --mz-kind-image: var(--color-sky-300);
+  --mz-kind-media: var(--color-peach-300);
+  --mz-kind-code: var(--color-mint-400);
+  --mz-kind-archive: var(--color-warning-400);
+  --mz-kind-file: color-mix(in srgb, var(--color-cream-100) 55%, transparent);
+
+  --mz-motion: 180ms;
+}
+
+/* Day theme — the default is the night theme. The same selectors apply
+ * for an explicit choice and for "follow the system". */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --mz-bg: #f5f2fb;
+  --mz-text: #1c1733;
+  --mz-text-muted: color-mix(in srgb, #1c1733 64%, transparent);
+  --mz-text-faint: color-mix(in srgb, #1c1733 42%, transparent);
+  --mz-border: color-mix(in srgb, var(--color-violet-700) 16%, transparent);
+  --mz-border-strong: color-mix(in srgb, var(--color-violet-700) 32%, transparent);
+  --mz-accent: #5b4bc4;
+  --mz-focus-ring: #6c5ce0;
+  --mz-glass-top: rgb(255 255 255 / 0.82);
+  --mz-glass-bottom: rgb(255 255 255 / 0.7);
+  --mz-solid: #ffffff;
+  --mz-popover: #ffffff;
+  --mz-inset: color-mix(in srgb, var(--color-violet-700) 5%, white);
+  --mz-hover: color-mix(in srgb, var(--color-violet-700) 5%, transparent);
+  --mz-selected: color-mix(in srgb, #7d6de0 14%, transparent);
+  --mz-warning: #a86b00;
+  --mz-danger: #c2323d;
+  --mz-success: #1d7d65;
+
+  --mz-frame: #ece7f7;
+  --mz-toolbar: #f7f4fd;
+
+  --mz-kind-folder: #7d6de0;
+  --mz-kind-image: #2f86b5;
+  --mz-kind-media: #c7663b;
+  --mz-kind-code: #1d7d65;
+  --mz-kind-archive: #a86b00;
+  --mz-kind-file: color-mix(in srgb, #1c1733 50%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mz-motion: 0ms;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background: var(--mz-bg);
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse 80% 55% at 85% -5%,
+      color-mix(in srgb, var(--color-lavender-400) 16%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 0% 0%,
+      color-mix(in srgb, var(--color-violet-700) 55%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 90% 50% at 50% 115%,
+      color-mix(in srgb, var(--color-sky-300) 8%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(180deg, var(--color-night-900) 0%, var(--color-night-950) 70%);
+  background-attachment: fixed;
+  color: var(--mz-text);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Roboto,
+    "Noto Sans",
+    sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(
+      ellipse 80% 55% at 85% -5%,
+      color-mix(in srgb, var(--color-lavender-400) 28%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #f7f4fd 0%, #eee9f8 100%);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-lavender-400) 40%, transparent);
+}
+
+/* A visible keyboard focus is a must. */
+:focus-visible {
+  outline: 2px solid var(--mz-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Quiet scrollbars that match the night sky. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-lavender-400) 28%, transparent) transparent;
+}
+
+/* ---- Night sky: stars + moon, purely decorative ---- */
+
+.mz-sky {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.mz-sky::before,
+.mz-sky::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+}
+
+.mz-sky::before {
+  background-image:
+    radial-gradient(1.5px 1.5px at 23px 41px, rgb(255 255 255 / 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 142px 88px, rgb(255 255 255 / 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 251px 17px, rgb(214 207 253 / 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 67px 196px, rgb(255 255 255 / 0.55), transparent),
+    radial-gradient(1.5px 1.5px at 199px 243px, rgb(255 255 255 / 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 297px 158px, rgb(154 215 245 / 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 111px 281px, rgb(255 255 255 / 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 309px 300px, rgb(214 207 253 / 0.6), transparent);
+  background-size: 320px 320px;
+}
+
+.mz-sky::after {
+  background-image:
+    radial-gradient(2px 2px at 60px 90px, rgb(255 255 255 / 0.95), transparent),
+    radial-gradient(2.5px 2.5px at 380px 210px, rgb(214 207 253 / 0.95), transparent),
+    radial-gradient(2px 2px at 250px 460px, rgb(255 255 255 / 0.9), transparent),
+    radial-gradient(2.5px 2.5px at 470px 40px, rgb(255 255 255 / 0.95), transparent);
+  background-size: 540px 540px;
+  /* Like MoonTask and Moon Explorer, the stars don't twinkle: a full-window
+   * opacity animation costs CPU for nothing. */
+  opacity: 0.8;
+}
+
+:root[data-theme="light"] .mz-sky::before,
+:root[data-theme="light"] .mz-sky::after {
+  opacity: 0;
+}
+
+.mz-moon {
+  position: absolute;
+  top: -70px;
+  right: -40px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  box-shadow:
+    inset -46px 22px 0 0 color-mix(in srgb, var(--color-moon-100) 92%, transparent),
+    0 0 90px -20px color-mix(in srgb, var(--color-lavender-400) 45%, transparent);
+  opacity: 0.4;
+  transform: rotate(-12deg);
+}
+
+:root[data-theme="light"] .mz-moon {
+  box-shadow:
+    inset -46px 22px 0 0 color-mix(in srgb, var(--color-lavender-400) 55%, transparent),
+    0 0 90px -20px color-mix(in srgb, var(--color-lavender-400) 45%, transparent);
+}
+
+/* ---- Reusable surfaces and controls ---- */
+
+@layer components {
+  .mz-glass {
+    background: linear-gradient(180deg, var(--mz-glass-top), var(--mz-glass-bottom));
+    border: 1px solid var(--mz-border);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05),
+      0 24px 60px -30px rgb(0 0 0 / 0.55);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+
+  .mz-popover {
+    background: var(--mz-popover);
+    border: 1px solid var(--mz-border-strong);
+    border-radius: 0.9rem;
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05),
+      0 18px 50px -12px rgb(0 0 0 / 0.6);
+  }
+
+  :root[data-theme="light"] .mz-popover {
+    box-shadow: 0 18px 50px -14px rgb(43 33 96 / 0.35);
+  }
+
+  .mz-inset {
+    background: var(--mz-inset);
+    border: 1px solid color-mix(in srgb, var(--color-lavender-400) 12%, transparent);
+    border-radius: var(--radius-md);
+  }
+
+  .mz-title {
+    background: linear-gradient(
+      100deg,
+      var(--color-moon-100) 0%,
+      var(--color-lavender-300) 45%,
+      var(--color-lavender-400) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  :root[data-theme="light"] .mz-title {
+    background: linear-gradient(100deg, #2b2160 0%, #5b4bc4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .mz-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--mz-accent) 75%, transparent);
+  }
+
+  /* Custom title bar of the frameless window (Moon Explorer, Moon Browser). */
+  .mz-titlebar {
+    -webkit-app-region: drag;
+    app-region: drag;
+    user-select: none;
+    background: var(--mz-frame);
+    border-bottom: 1px solid var(--mz-border);
+  }
+  .mz-titlebar button,
+  .mz-titlebar input {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .mz-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    height: 2rem;
+    padding: 0 0.8rem;
+    border-radius: 0.65rem;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--mz-text);
+    background: transparent;
+    transition:
+      background-color var(--mz-motion),
+      border-color var(--mz-motion),
+      box-shadow var(--mz-motion),
+      filter var(--mz-motion);
+  }
+  .mz-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .mz-btn-sm {
+    height: 1.75rem;
+    padding: 0 0.6rem;
+    font-size: 0.75rem;
+  }
+  .mz-btn-icon {
+    width: 2rem;
+    padding: 0;
+  }
+
+  .mz-btn-primary {
+    background: linear-gradient(135deg, var(--color-lavender-300), #a597f5);
+    color: var(--color-night-950);
+    box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--color-lavender-400) 80%, transparent);
+  }
+  .mz-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+
+  .mz-btn-ghost {
+    background: var(--mz-hover);
+    border-color: color-mix(in srgb, var(--color-lavender-400) 22%, transparent);
+  }
+  .mz-btn-ghost:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-lavender-400) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-lavender-400) 42%, transparent);
+  }
+  .mz-btn-ghost[aria-pressed="true"] {
+    background: var(--mz-selected);
+    border-color: color-mix(in srgb, var(--color-lavender-400) 50%, transparent);
+    color: var(--mz-accent);
+  }
+
+  .mz-btn-danger {
+    background: color-mix(in srgb, var(--color-error-500) 8%, transparent);
+    border-color: color-mix(in srgb, var(--color-error-500) 45%, transparent);
+    color: var(--mz-danger);
+  }
+  .mz-btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-error-500) 18%, transparent);
+  }
+
+  /* Borderless square icon buttons of the toolbar. */
+  .mz-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    border-radius: 0.65rem;
+    border: 0;
+    background: transparent;
+    color: var(--mz-text-muted);
+    cursor: pointer;
+    transition:
+      background-color var(--mz-motion),
+      color var(--mz-motion);
+  }
+  .mz-icon-btn:hover:not(:disabled),
+  .mz-icon-btn[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--color-lavender-400) 8%, transparent);
+    color: var(--mz-text);
+  }
+  .mz-icon-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .mz-icon-btn[aria-pressed="true"] {
+    color: var(--mz-accent);
+  }
+
+  .mz-input {
+    height: 2rem;
+    padding: 0 0.7rem;
+    border-radius: 0.65rem;
+    border: 1px solid color-mix(in srgb, var(--color-lavender-400) 20%, transparent);
+    background: var(--mz-inset);
+    color: var(--mz-text);
+    font: inherit;
+    font-size: 0.8125rem;
+    transition:
+      border-color var(--mz-motion),
+      box-shadow var(--mz-motion);
+  }
+  .mz-input::placeholder {
+    color: var(--mz-text-faint);
+  }
+  .mz-input:hover:not(:disabled) {
+    border-color: var(--mz-border-strong);
+  }
+  .mz-input:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--color-lavender-400) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-lavender-400) 20%, transparent);
+  }
+  select.mz-input option {
+    background: var(--mz-solid);
+    color: var(--mz-text);
+  }
+
+  /* Breadcrumb segments of the path inside an archive (Moon Explorer's path bar). */
+  .mz-crumb {
+    padding: 0.2rem 0.5rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--mz-text-muted);
+    font: inherit;
+    cursor: pointer;
+  }
+  .mz-crumb:hover {
+    background: var(--mz-hover);
+    color: var(--mz-text);
+  }
+  .mz-crumb[aria-current="page"] {
+    color: var(--mz-text);
+    font-weight: 600;
+  }
+
+  .mz-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.25rem;
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--color-lavender-400) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-lavender-400) 20%, transparent);
+    color: var(--mz-accent);
+  }
+  .mz-chip-mint {
+    background: color-mix(in srgb, var(--color-mint-400) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-mint-400) 28%, transparent);
+    color: var(--mz-success);
+  }
+  .mz-chip-warning {
+    background: color-mix(in srgb, var(--color-warning-400) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning-400) 30%, transparent);
+    color: var(--mz-warning);
+  }
+  .mz-chip-danger {
+    background: color-mix(in srgb, var(--color-error-500) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-error-500) 30%, transparent);
+    color: var(--mz-danger);
+  }
+  .mz-chip-muted {
+    background: transparent;
+    border-color: var(--mz-border);
+    color: var(--mz-text-muted);
+  }
+
+  /* Dense data tables (the archive's file list) — MoonTask's process table. */
+  .mz-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .mz-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    height: 2.1rem;
+    padding: 0 0.6rem;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mz-text-muted);
+    background: var(--mz-solid);
+    border-bottom: 1px solid var(--mz-border);
+    white-space: nowrap;
+  }
+  .mz-table tbody td {
+    height: 1.875rem;
+    padding: 0 0.6rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-lavender-400) 6%, transparent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+  }
+  .mz-table tbody tr {
+    transition: background-color 120ms;
+  }
+  .mz-table tbody tr:hover {
+    background: var(--mz-hover);
+  }
+  .mz-table tbody tr[aria-selected="true"] {
+    background: var(--mz-selected);
+    box-shadow: inset 2px 0 0 0 var(--mz-accent);
+  }
+
+  .mz-meter {
+    height: 0.3rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-lavender-400) 14%, transparent);
+    overflow: hidden;
+  }
+  .mz-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #8676e3, var(--color-lavender-300));
+  }
+  .mz-meter[data-tone="warning"] > span {
+    background: linear-gradient(90deg, #d9a640, var(--color-warning-400));
+  }
+
+  /* A switch: a checkbox that looks like a small moon sliding along. */
+  .mz-switch {
+    appearance: none;
+    position: relative;
+    width: 2.25rem;
+    height: 1.3rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-lavender-400) 16%, transparent);
+    border: 1px solid var(--mz-border-strong);
+    cursor: pointer;
+    transition: background-color var(--mz-motion);
+  }
+  .mz-switch::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(1.3rem - 6px);
+    height: calc(1.3rem - 6px);
+    border-radius: 50%;
+    background: var(--mz-text-muted);
+    transition:
+      transform var(--mz-motion),
+      background-color var(--mz-motion);
+  }
+  .mz-switch:checked {
+    background: linear-gradient(135deg, var(--color-lavender-300), #a597f5);
+    border-color: transparent;
+  }
+  .mz-switch:checked::after {
+    transform: translateX(0.95rem);
+    background: var(--color-night-950);
+  }
+
+  .mz-kbd {
+    display: inline-flex;
+    align-items: center;
+    height: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 0.3rem;
+    border: 1px solid var(--mz-border);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--mz-text-muted);
+  }
+
+  /* Items of a context menu (Moon Browser's menu rows). */
+  .mz-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    height: 2rem;
+    padding: 0 0.65rem;
+    border: 0;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: var(--mz-text);
+    font: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mz-menu-item:hover,
+  .mz-menu-item:focus-visible {
+    background: var(--mz-selected);
+    outline: none;
+  }
+
+  /* The big drop target on the start page and while files are dragged in. */
+  .mz-drop {
+    border: 1.5px dashed color-mix(in srgb, var(--color-lavender-400) 38%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--color-lavender-400) 4%, transparent);
+    transition:
+      border-color var(--mz-motion),
+      background-color var(--mz-motion),
+      box-shadow var(--mz-motion);
+  }
+  .mz-drop[data-active="true"] {
+    border-color: color-mix(in srgb, var(--color-lavender-300) 85%, transparent);
+    background: color-mix(in srgb, var(--color-lavender-400) 12%, transparent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-lavender-400) 14%, transparent);
+  }
+
+  /* A choice card (archive format, overwrite mode): a radio that looks like a tile. */
+  .mz-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.7rem;
+    border: 1px solid var(--mz-border);
+    background: var(--mz-hover);
+    color: var(--mz-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color var(--mz-motion),
+      border-color var(--mz-motion);
+  }
+  .mz-option:hover {
+    background: color-mix(in srgb, var(--color-lavender-400) 10%, transparent);
+    border-color: var(--mz-border-strong);
+  }
+  .mz-option[aria-checked="true"] {
+    background: var(--mz-selected);
+    border-color: color-mix(in srgb, var(--color-lavender-400) 60%, transparent);
+  }
+  .mz-option[aria-checked="true"] .mz-option-title {
+    color: var(--mz-accent);
+  }
+  .mz-option-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .mz-option-hint {
+    font-size: 0.6875rem;
+    color: var(--mz-text-muted);
+  }
+
+  .mz-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--mz-text-muted);
+  }
+
+  .mz-checkbox {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--color-lavender-400);
+  }
+}
