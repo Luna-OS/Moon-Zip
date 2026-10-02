@@ -1,0 +1,43 @@
+# Checks every pull request and every push to main on Windows, the platform Moon Zip is for:
+# lint, format, the tests (the engine tests run the real 7-Zip), the build, and the installer
+# itself, so a broken build/installer.nsh shows up before a release. The installer and the ZIP
+# are kept as an artifact of the run for trying out.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      # Keep LF line endings (Prettier checks for them); Windows runners convert to CRLF by default.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run fetch-7zip
+      - run: npm run lint
+      - run: npx prettier --check .
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder --win --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moon-zip-windows
+          path: |
+            release/Moon-Zip-Setup-*.exe
+            release/Moon-Zip-*-win-x64.zip
+          retention-days: 14

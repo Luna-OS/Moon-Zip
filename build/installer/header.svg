@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="57" viewBox="0 0 150 57">
+  <!-- The installer's page header picture (installerHeader.bmp, 150 × 57, right-aligned).
+       Rendered by `npm run icons`; LOGO is replaced with public/moon-zip-logo.svg.
+       The header around it is #141030 (MUI_BGCOLOR in build/installer.nsh), so the left edge
+       starts in exactly that colour. -->
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#141030"/>
+      <stop offset="0.45" stop-color="#1d1742"/>
+      <stop offset="1" stop-color="#2a2060"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.76" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#b9aefb" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#b9aefb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="150" height="57" fill="url(#night)"/>
+  <rect width="150" height="57" fill="url(#glow)"/>
+  <g fill="#f4f1ff">
+    <circle cx="58" cy="12" r="0.9" opacity="0.7"/>
+    <circle cx="80" cy="42" r="0.8" opacity="0.6"/>
+    <circle cx="142" cy="9" r="1" opacity="0.9"/>
+    <circle cx="144" cy="47" r="0.8" opacity="0.6"/>
+  </g>
+  <circle cx="72" cy="24" r="0.9" fill="#9ad7f5" opacity="0.7"/>
+  <circle cx="40" cy="34" r="0.8" fill="#d6cffd" opacity="0.5"/>
+  <image href="LOGO" x="93" y="7" width="43" height="43"/>
+</svg>

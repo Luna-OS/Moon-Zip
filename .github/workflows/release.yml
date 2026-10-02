@@ -1,0 +1,73 @@
+# Fetches 7-Zip, builds the Windows installer and the portable ZIP on a Windows runner and publishes them as a
+# GitHub release. It starts either when a version tag (v1.2.3) is pushed, or by hand with
+# "Run workflow" (workflow_dispatch) on a branch: then it releases that commit and creates the tag
+# v<package.json version> itself. The release notes come from docs/releases/<tag>.md, and the tag
+# must match the version in package.json.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      # Keep LF line endings (Prettier checks for them); Windows runners convert to CRLF by default.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Work out the tag and check it against package.json
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
+            if [ "v$version" != "$tag" ]; then
+              echo "::error::Tag $tag doesn't match package.json version $version"
+              exit 1
+            fi
+          else
+            tag="v$version"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+              echo "::error::$tag already exists; raise the version in package.json first"
+              exit 1
+            fi
+          fi
+          test -f "docs/releases/$tag.md" || {
+            echo "::error::docs/releases/$tag.md is missing"
+            exit 1
+          }
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm ci
+      - run: npm run fetch-7zip
+      - run: npm run lint
+      - run: npx prettier --check .
+      - run: npm test
+      - run: npm run build
+      # Only build here; the release is published below with gh.
+      - run: npx electron-builder --win --publish never
+
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # --target creates the tag on this commit when it doesn't exist yet (a manual run).
+        run: |
+          gh release create "$TAG" \
+            "release/Moon-Zip-Setup-$VERSION.exe" \
+            "release/Moon-Zip-$VERSION-win-x64.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Moon Zip $VERSION" \
+            --notes-file "docs/releases/$TAG.md"
