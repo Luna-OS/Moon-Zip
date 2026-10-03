@@ -12,7 +12,8 @@ import {
   ShieldCheckIcon,
 } from "../theme/icons";
 import { Checksums } from "./Checksums";
-import { useBridge } from "./context";
+import { useBridge, usePrefs } from "./context";
+import { explorerName, useMoonExplorer } from "./useMoonExplorer";
 import { badPassword, isCancelled, messageOf, needsPassword } from "./errors";
 import { ProgressCard } from "./ProgressCard";
 import { TitleBar } from "./TitleBar";
@@ -38,6 +39,8 @@ interface Outcome {
   lines: string[];
   /** Folder or archive to show afterwards. */
   reveal?: string;
+  /** `reveal` is a file, to be selected in its folder. */
+  select?: boolean;
   openArchive?: string;
 }
 
@@ -50,6 +53,8 @@ const AUTO_CLOSE = 4;
  */
 export function TaskWindow({ action, paths }: { action: TaskAction; paths: string[] }) {
   const bridge = useBridge();
+  const { prefs } = usePrefs();
+  const moonExplorer = useMoonExplorer();
   const { job, run, cancel } = useJob();
   const [stage, setStage] = useState<"dialog" | "running" | "done">(
     action === "add" || action === "extract" || action === "checksums" ? "dialog" : "running",
@@ -143,10 +148,12 @@ export function TaskWindow({ action, paths }: { action: TaskAction; paths: strin
           lines.push(`${name}: ${messageOf(e)}`);
         }
       }
-      if (ok && choice?.openAfter && reveal) void bridge.open(reveal);
-      finish({ ok, lines, reveal }, ok && !choice?.openAfter);
+      // In Moon Explorer when it is installed (Settings), else in Windows Explorer.
+      const showAfter = choice?.openAfter ?? prefs.showAfterExtract;
+      if (ok && showAfter && reveal) void bridge.show(reveal).catch(() => {});
+      finish({ ok, lines, reveal }, ok);
     },
-    [bridge, paths, run, withPassword, finish],
+    [bridge, paths, run, withPassword, finish, prefs.showAfterExtract],
   );
 
   const compress = useCallback(
@@ -164,6 +171,7 @@ export function TaskWindow({ action, paths }: { action: TaskAction; paths: strin
               `Created ${basename(res.archive)} in ${dirname(res.archive)}${res.warnings ? `\n${res.warnings}` : ""}`,
             ],
             reveal: res.archive,
+            select: true,
             openArchive: res.archive,
           },
           true,
@@ -313,9 +321,11 @@ export function TaskWindow({ action, paths }: { action: TaskAction; paths: strin
                 <button
                   type="button"
                   className="mz-btn mz-btn-ghost"
-                  onClick={() => void bridge.reveal(outcome.reveal!)}
+                  onClick={() =>
+                    void bridge.show(outcome.reveal!, { select: outcome.select }).catch(() => {})
+                  }
                 >
-                  Show in folder
+                  Show in {explorerName(moonExplorer.active)}
                 </button>
               )}
               <button

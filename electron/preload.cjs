@@ -57,7 +57,8 @@ const bridge = {
   pickSaveArchive: (defaultPath) => call("dialog:saveArchive", defaultPath),
 
   open: (p) => call("shell:open", p),
-  reveal: (p) => call("shell:reveal", p),
+  show: (p, opts) => call("shell:show", p, opts),
+  setPrefs: (prefs) => call("sys:setPrefs", prefs),
   openArchiveWindow: (p) => call("app:openArchive", p),
   newWindow: () => call("app:newWindow"),
 

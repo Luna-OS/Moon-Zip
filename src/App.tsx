@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArchiveWindow } from "./app/ArchiveWindow";
-import { BridgeContext } from "./app/context";
-import { loadTheme, saveTheme } from "./app/storage";
+import { BridgeContext, PrefsContext } from "./app/context";
+import { loadPrefs, loadTheme, savePrefs, saveTheme, type Prefs } from "./app/storage";
 import { TaskWindow } from "./app/TaskWindow";
 import { defaultBridge } from "./lib/bridge";
 import type { MoonZipBridge, StartRequest } from "./lib/types";
@@ -17,6 +17,17 @@ export default function App({ bridge: given }: { bridge?: MoonZipBridge }) {
   const [start, setStart] = useState<StartRequest | null>(null);
   const [theme, setTheme] = useState<ThemeChoice>(() => loadTheme());
   const resolved = useDocumentTheme(theme);
+  const [prefs, setPrefsState] = useState<Prefs>(() => loadPrefs());
+  const prefsValue = useMemo(
+    () => ({
+      prefs,
+      setPrefs: (next: Prefs) => {
+        setPrefsState(next);
+        savePrefs(next);
+      },
+    }),
+    [prefs],
+  );
 
   useEffect(() => {
     void bridge.takeStart().then(setStart, () => setStart({ kind: "home" }));
@@ -26,6 +37,11 @@ export default function App({ bridge: given }: { bridge?: MoonZipBridge }) {
     void bridge.setTheme(resolved).catch(() => {});
   }, [bridge, resolved]);
 
+  // The main process shows files and dialogs itself, so it needs the Moon Explorer choice.
+  useEffect(() => {
+    void bridge.setPrefs({ useMoonExplorer: prefs.useMoonExplorer }).catch(() => {});
+  }, [bridge, prefs.useMoonExplorer]);
+
   function chooseTheme(t: ThemeChoice) {
     setTheme(t);
     saveTheme(t);
@@ -33,16 +49,18 @@ export default function App({ bridge: given }: { bridge?: MoonZipBridge }) {
 
   return (
     <BridgeContext.Provider value={bridge}>
-      <Sky moon={start?.kind !== "task"} />
-      {start?.kind === "task" && <TaskWindow action={start.action} paths={start.paths} />}
-      {start && start.kind !== "task" && (
-        <ArchiveWindow
-          initialPath={start.kind === "open" ? start.path : null}
-          theme={theme}
-          resolvedTheme={resolved}
-          onTheme={chooseTheme}
-        />
-      )}
+      <PrefsContext.Provider value={prefsValue}>
+        <Sky moon={start?.kind !== "task"} />
+        {start?.kind === "task" && <TaskWindow action={start.action} paths={start.paths} />}
+        {start && start.kind !== "task" && (
+          <ArchiveWindow
+            initialPath={start.kind === "open" ? start.path : null}
+            theme={theme}
+            resolvedTheme={resolved}
+            onTheme={chooseTheme}
+          />
+        )}
+      </PrefsContext.Provider>
     </BridgeContext.Provider>
   );
 }

@@ -198,7 +198,14 @@ export class DemoBridge implements MoonZipBridge {
   shell: ShellIntegrationStatus = { supported: true, enabled: true, stale: false };
   start: StartRequest;
   opened: string[] = [];
-  revealed: string[] = [];
+  /** What show() was asked for, and with which app (Moon Explorer is "installed" in the demo). */
+  shown: { path: string; select: boolean; app: "moon-explorer" | "explorer" }[] = [];
+  useMoonExplorer = true;
+  moonExplorer: { exe: string; version: string | null; picker: boolean } | null = {
+    exe: "C:\\Users\\Luna\\AppData\\Local\\Programs\\Moon Explorer\\Moon Explorer.exe",
+    version: "0.3.1",
+    picker: true,
+  };
   private listeners = new Map<string, Set<(data: never) => void>>();
   private cancelled = new Set<string>();
 
@@ -252,6 +259,7 @@ export class DemoBridge implements MoonZipBridge {
       version: "0.1.0",
       sevenZip: "26.03",
       formats: ["7z", "zip", "tar", "tar.gz", "tar.xz", "tar.bz2"],
+      moonExplorer: this.moonExplorer,
     });
   }
 
@@ -463,8 +471,19 @@ export class DemoBridge implements MoonZipBridge {
     return later(() => void this.opened.push(path));
   }
 
-  reveal(path: string) {
-    return later(() => void this.revealed.push(path));
+  show(path: string, opts: { select?: boolean } = {}) {
+    return later(() => {
+      const app =
+        this.useMoonExplorer && this.moonExplorer
+          ? ("moon-explorer" as const)
+          : ("explorer" as const);
+      this.shown.push({ path, select: !!opts.select, app });
+      return app;
+    });
+  }
+
+  setPrefs(prefs: { useMoonExplorer: boolean }) {
+    return later(() => void (this.useMoonExplorer = prefs.useMoonExplorer));
   }
 
   openArchiveWindow(path: string) {

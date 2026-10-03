@@ -326,13 +326,13 @@ export function ArchiveWindow({
       if (!res) return;
       if (choice.password && !o.password)
         setOpened((cur) => (cur ? { ...cur, password: choice.password } : cur));
-      if (choice.openAfter) void bridge.open(res.destDir);
+      if (choice.openAfter) void bridge.show(res.destDir).catch(fail);
       push({
         tone: "success",
         text: `Extracted to ${res.destDir}${res.warnings ? `\n${res.warnings}` : ""}`,
         action: choice.openAfter
           ? undefined
-          : { label: "Show", run: () => void bridge.open(res.destDir) },
+          : { label: "Show", run: () => void bridge.show(res.destDir).catch(fail) },
       });
     } catch (e) {
       fail(e);

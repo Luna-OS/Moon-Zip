@@ -15,6 +15,7 @@ const os = require("os");
 const path = require("path");
 const engine = require("./engine/engine.cjs");
 const shellIntegration = require("./shell-integration/index.cjs");
+const moonExplorer = require("./moon-explorer.cjs");
 const { startFromArgv, Batcher } = require("./start.cjs");
 
 const ROOT = path.join(__dirname, "..");
@@ -33,6 +34,8 @@ const starts = new Map();
 /** Running jobs by the id the UI gave them, so they can be cancelled. */
 const jobs = new Map();
 let tempRoot = null;
+/** The UI's preferences the main process needs (sys:setPrefs, from Settings). */
+let prefs = { useMoonExplorer: true };
 
 // ---------------------------------------------------------------- windows
 
@@ -178,6 +181,35 @@ async function statPaths(paths) {
   );
 }
 
+/**
+ * Moon Explorer's own dialog, when it is wanted and has one (0.3.0 and later): resolves to
+ * { path } (path null on cancel), or to null when the Windows dialog should be used instead
+ * (no Moon Explorer, or it couldn't be started).
+ */
+async function moonExplorerPick(options) {
+  if (!prefs.useMoonExplorer) return null;
+  const me = await moonExplorer.find();
+  if (!me || !me.picker) return null;
+  try {
+    return { path: await moonExplorer.pick(me.exe, options) };
+  } catch {
+    return null;
+  }
+}
+
+/** `p` if it is a folder, else the nearest folder above it that exists (or undefined). */
+function existingFolder(p) {
+  for (let dir = p; dir; dir = path.dirname(dir)) {
+    try {
+      if (fs.statSync(dir).isDirectory()) return dir;
+    } catch {
+      /* not there (yet) */
+    }
+    if (path.dirname(dir) === dir) break;
+  }
+  return undefined;
+}
+
 /** A name for a new file in `dir` that doesn't exist yet: "name.zip", "name (2).zip", … */
 function freeArchiveName(dir, base, ext) {
   let candidate = `${base}${ext}`;
@@ -209,6 +241,7 @@ function registerIpc() {
     version: app.getVersion(),
     sevenZip: await versionOf7Zip(),
     formats: Object.keys(engine.CREATE_FORMATS),
+    moonExplorer: await moonExplorer.find(),
   }));
   handle("sys:shellIntegration", () => shellIntegration.status(app));
   handle("sys:setShellIntegration", (_e, enabled) =>
@@ -267,21 +300,31 @@ function registerIpc() {
 
   handle("fs:stat", (_e, paths) => statPaths(paths));
 
+  // The dialogs: Moon Explorer's own Open/Save dialog when it is installed and wanted (and new
+  // enough to have one), else the Windows dialogs. Picking several files at once stays a Windows
+  // dialog, because Moon Explorer's dialog picks one file.
   handle("dialog:openArchive", async (e) => {
+    const filters = [
+      {
+        label: "Archives",
+        extensions: require("./shell-integration/registry.cjs").ARCHIVE_EXTENSIONS,
+      },
+      { label: "All files", extensions: ["*"] },
+    ];
+    const picked = await moonExplorerPick({ mode: "open", title: "Open an archive", filters });
+    if (picked) return picked.path;
     const res = await dialog.showOpenDialog(senderWindow(e), {
       title: "Open an archive",
       properties: ["openFile"],
-      filters: [
-        {
-          name: "Archives",
-          extensions: require("./shell-integration/registry.cjs").ARCHIVE_EXTENSIONS,
-        },
-        { name: "All files", extensions: ["*"] },
-      ],
+      filters: filters.map((f) => ({ name: f.label, extensions: f.extensions })),
     });
     return res.canceled ? null : res.filePaths[0];
   });
   handle("dialog:pickFiles", async (e, folders) => {
+    const picked = folders
+      ? await moonExplorerPick({ mode: "folder", title: "Choose a folder" })
+      : null;
+    if (picked) return picked.path ? [picked.path] : [];
     const res = await dialog.showOpenDialog(senderWindow(e), {
       title: folders ? "Choose folders" : "Choose files",
       properties: [folders ? "openDirectory" : "openFile", "multiSelections"],
@@ -289,6 +332,12 @@ function registerIpc() {
     return res.canceled ? [] : res.filePaths;
   });
   handle("dialog:pickFolder", async (e, defaultPath) => {
+    const picked = await moonExplorerPick({
+      mode: "folder",
+      title: "Choose a folder",
+      startDir: existingFolder(defaultPath),
+    });
+    if (picked) return picked.path;
     const res = await dialog.showOpenDialog(senderWindow(e), {
       title: "Choose a folder",
       defaultPath,
@@ -297,6 +346,19 @@ function registerIpc() {
     return res.canceled ? null : res.filePaths[0];
   });
   handle("dialog:saveArchive", async (e, defaultPath) => {
+    const name = path.basename(defaultPath);
+    const ext = path.extname(name).slice(1).toLowerCase();
+    const picked = await moonExplorerPick({
+      mode: "save",
+      title: "Save the archive as",
+      name,
+      startDir: existingFolder(path.dirname(defaultPath)),
+      filters: [
+        ...(ext ? [{ label: "Archive", extensions: [ext] }] : []),
+        { label: "All files", extensions: ["*"] },
+      ],
+    });
+    if (picked) return picked.path;
     const res = await dialog.showSaveDialog(senderWindow(e), {
       title: "Save the archive as",
       defaultPath,
@@ -308,7 +370,21 @@ function registerIpc() {
     const err = await shell.openPath(p);
     if (err) throw new Error(err);
   });
-  handle("shell:reveal", (_e, p) => shell.showItemInFolder(p));
+  // Shows a folder, or a file selected in its folder: in Moon Explorer when it is installed and
+  // wanted, else in Windows Explorer. Answers which one it used.
+  handle("shell:show", async (_e, target, { select = false } = {}) => {
+    const me = prefs.useMoonExplorer ? await moonExplorer.find() : null;
+    if (me && (await moonExplorer.show(me.exe, target))) return "moon-explorer";
+    if (select) shell.showItemInFolder(target);
+    else {
+      const err = await shell.openPath(target);
+      if (err) throw new Error(err);
+    }
+    return "explorer";
+  });
+  handle("sys:setPrefs", (_e, next) => {
+    prefs = { ...prefs, useMoonExplorer: next?.useMoonExplorer !== false };
+  });
   handle("app:openArchive", (_e, p) => handleStart({ action: "open", paths: [p] }));
   handle("app:newWindow", () => createArchiveWindow({ kind: "home" }));
 

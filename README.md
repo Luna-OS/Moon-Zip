@@ -27,6 +27,9 @@ real 7-Zip inside, a calm night-sky app outside.
   Extract to new folder, Extract to…, Test archive) and "Compress with Moon Zip" on any file or folder
   (Add to archive…, Compress to .7z, Compress to .zip, Checksums…). Each runs in a small Moon window
   with the moon filling up as 7-Zip works. See [docs/shell-integration.md](docs/shell-integration.md).
+- **Moon Explorer instead of Windows Explorer** when it is installed: extracted files open in it,
+  "Show in …" uses it, and its own Open/Save dialog picks archives, folders and where to save. See
+  [docs/moon-explorer.md](docs/moon-explorer.md).
 - **Night and day** themes (or follow Windows), the same palette and components as the other Moon
   apps. See [docs/theme.md](docs/theme.md).
 
@@ -91,6 +94,7 @@ How the pieces fit together:
 - `electron/engine/` runs the bundled 7-Zip console tool (`7z.exe` + `7z.dll`): `args.cjs` builds
   its command lines, `listing.cjs` parses its output and progress, `engine.cjs` runs the jobs.
 - `electron/shell-integration/` writes the right-click menu and "Open with" entries (per user).
+- `electron/moon-explorer.cjs` finds an installed Moon Explorer, shows files in it and runs its dialog.
 - `electron/start.cjs` turns a command line (a double-clicked archive, a menu action) into a
   window; Explorer starts one process per selected file, and the first one gathers them.
 - `src/` is the React UI; `src/lib/demo.ts` imitates the main process for the browser and the tests.

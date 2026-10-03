@@ -208,3 +208,83 @@ describe("rename rules", () => {
     expect(nameProblem("fine.txt", ["other"])).toBeNull();
   });
 });
+
+describe("Moon Explorer", () => {
+  const archive = DEMO_ARCHIVES.photos;
+
+  it("Extract to new folder shows the files in Moon Explorer when it is installed", async () => {
+    const b = bridge({ start: { kind: "task", action: "extract-to-folder", paths: [archive] } });
+    render(<App bridge={b} />);
+    expect(await screen.findByText("Done")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(b.shown).toEqual([
+        { path: "C:\\Users\\Luna\\Downloads\\Moon photos", select: false, app: "moon-explorer" },
+      ]),
+    );
+    expect(screen.getByRole("button", { name: "Show in Moon Explorer" })).toBeInTheDocument();
+  });
+
+  it("without Moon Explorer the button says Windows Explorer", async () => {
+    const b = bridge({ start: { kind: "task", action: "extract-here", paths: [archive] } });
+    b.moonExplorer = null;
+    render(<App bridge={b} />);
+    expect(
+      await screen.findByRole("button", { name: "Show in Windows Explorer" }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(b.shown[0]?.app).toBe("explorer"));
+  });
+
+  it("a new archive is shown selected in its folder", async () => {
+    const b = bridge({
+      start: {
+        kind: "task",
+        action: "compress-7z",
+        paths: ["C:\\Users\\Luna\\Pictures\\Comet.jpg"],
+      },
+    });
+    render(<App bridge={b} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Show in Moon Explorer" }));
+    await waitFor(() =>
+      expect(b.shown).toEqual([
+        { path: "C:\\Users\\Luna\\Pictures\\Comet.7z", select: true, app: "moon-explorer" },
+      ]),
+    );
+  });
+
+  it("Settings can switch Moon Explorer and showing the files off", async () => {
+    const b = bridge();
+    render(<App bridge={b} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+    const useIt = await screen.findByRole("switch", {
+      name: "Use Moon Explorer instead of Windows Explorer",
+    });
+    await waitFor(() => expect(useIt).toBeChecked());
+    expect(screen.getByText(/Moon Explorer 0\.3\.1 is installed/)).toBeInTheDocument();
+    fireEvent.click(useIt);
+    await waitFor(() => expect(b.useMoonExplorer).toBe(false));
+    fireEvent.click(screen.getByRole("switch", { name: "Show the files after extracting" }));
+    expect(JSON.parse(localStorage.getItem("moon-zip:prefs")!)).toEqual({
+      useMoonExplorer: false,
+      showAfterExtract: false,
+    });
+  });
+
+  it("with showing switched off, Extract here only reports", async () => {
+    localStorage.setItem(
+      "moon-zip:prefs",
+      JSON.stringify({ useMoonExplorer: true, showAfterExtract: false }),
+    );
+    const b = bridge({ start: { kind: "task", action: "extract-here", paths: [archive] } });
+    render(<App bridge={b} />);
+    expect(await screen.findByText("Done")).toBeInTheDocument();
+    expect(b.shown).toEqual([]);
+  });
+
+  it("the extract dialog says where the files will be shown", async () => {
+    render(<App bridge={bridge({ start: { kind: "open", path: archive } })} />);
+    fireEvent.click(await screen.findByRole("button", { name: /^Extract$/ }));
+    expect(
+      await screen.findByLabelText("Show the files in Moon Explorer when they're out"),
+    ).toBeChecked();
+  });
+});
