@@ -5,7 +5,7 @@ import type { ThemeChoice } from "../theme/useTheme";
  * full, and the app must work the same without it.
  */
 
-const KEYS = { theme: "moon-zip:theme", recent: "moon-zip:recent" };
+const KEYS = { theme: "moon-zip:theme", recent: "moon-zip:recent", prefs: "moon-zip:prefs" };
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -23,6 +23,25 @@ function write(key: string, value: unknown) {
     /* not available */
   }
 }
+
+export interface Prefs {
+  /** Show files in Moon Explorer and use its Open/Save dialog when it is installed. */
+  useMoonExplorer: boolean;
+  /** Show the extracted files when extracting is done (the right-click menu's actions too). */
+  showAfterExtract: boolean;
+}
+
+export const DEFAULT_PREFS: Prefs = { useMoonExplorer: true, showAfterExtract: true };
+
+export function loadPrefs(): Prefs {
+  const v = read<Partial<Prefs>>(KEYS.prefs, {});
+  return {
+    useMoonExplorer: v.useMoonExplorer !== false,
+    showAfterExtract: v.showAfterExtract !== false,
+  };
+}
+
+export const savePrefs = (prefs: Prefs) => write(KEYS.prefs, prefs);
 
 export function loadTheme(): ThemeChoice {
   const v = read<string>(KEYS.theme, "dark");

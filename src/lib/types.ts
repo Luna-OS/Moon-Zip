@@ -104,6 +104,15 @@ export interface AppInfo {
   version: string;
   sevenZip: string;
   formats: string[];
+  /** The installed Moon Explorer (electron/moon-explorer.cjs), or null. */
+  moonExplorer: MoonExplorerInfo | null;
+}
+
+export interface MoonExplorerInfo {
+  exe: string;
+  version: string | null;
+  /** It has its own Open/Save dialog (0.3.0 and later). */
+  picker: boolean;
 }
 
 /** An error from the engine: code is ENEEDPASS, EBADPASS, ENOTARCHIVE, ECANCELLED, E7ZIP, … */
@@ -167,7 +176,13 @@ export interface MoonZipBridge {
   pickSaveArchive(defaultPath: string): Promise<string | null>;
 
   open(path: string): Promise<void>;
-  reveal(path: string): Promise<void>;
+  /**
+   * Shows a folder, or with `select` a file selected in its folder: in Moon Explorer when it is
+   * installed and wanted, else in Windows Explorer. Resolves to which one was used.
+   */
+  show(path: string, opts?: { select?: boolean }): Promise<"moon-explorer" | "explorer">;
+  /** Tells the main process the preferences it needs (Settings). */
+  setPrefs(prefs: { useMoonExplorer: boolean }): Promise<void>;
   openArchiveWindow(path: string): Promise<void>;
   newWindow(): Promise<void>;
 

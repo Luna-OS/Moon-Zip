@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AppInfo, ShellIntegrationStatus } from "../../lib/types";
 import type { ThemeChoice } from "../../theme/useTheme";
 import { messageOf } from "../errors";
-import { useBridge } from "../context";
+import { useBridge, usePrefs } from "../context";
 import { Dialog, OptionGroup } from "./Dialog";
 
 export function SettingsDialog({
@@ -15,6 +15,7 @@ export function SettingsDialog({
   onClose: () => void;
 }) {
   const bridge = useBridge();
+  const { prefs, setPrefs } = usePrefs();
   const [shell, setShell] = useState<ShellIntegrationStatus | null>(null);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,6 +88,39 @@ export function SettingsDialog({
           />
         </div>
 
+        <SwitchRow
+          id="mz-moon-explorer"
+          label="Use Moon Explorer instead of Windows Explorer"
+          checked={prefs.useMoonExplorer && !!info?.moonExplorer}
+          disabled={!info?.moonExplorer}
+          onChange={(on) => setPrefs({ ...prefs, useMoonExplorer: on })}
+        >
+          {info?.moonExplorer ? (
+            <>
+              Moon Explorer {info.moonExplorer.version ?? ""} is installed. Moon Zip shows extracted
+              files and new archives in it
+              {info.moonExplorer.picker
+                ? ", and uses its Open, Save and folder dialogs."
+                : ". Update it to 0.3.0 or later to use its Open and Save dialogs too."}
+            </>
+          ) : (
+            <>
+              Moon Explorer isn’t installed{info ? "" : " (checking…)"}, so Windows Explorer is
+              used. Install Moon Explorer and Moon Zip uses it on its own.
+            </>
+          )}
+        </SwitchRow>
+
+        <SwitchRow
+          id="mz-show-after"
+          label="Show the files after extracting"
+          checked={prefs.showAfterExtract}
+          onChange={(on) => setPrefs({ ...prefs, showAfterExtract: on })}
+        >
+          Opens the folder with the extracted files, also after “Extract here” and “Extract to new
+          folder” in the right-click menu.
+        </SwitchRow>
+
         <div className="text-xs leading-relaxed text-(--mz-text-muted)">
           <p>
             Moon Zip {info?.version ?? ""} · part of the Luna-OS Moon family (MoonDisk, MoonTask,
@@ -100,5 +134,42 @@ export function SettingsDialog({
         </div>
       </div>
     </Dialog>
+  );
+}
+
+/** A setting with a switch on the right: the label, a short explanation and the switch. */
+function SwitchRow({
+  id,
+  label,
+  checked,
+  disabled,
+  onChange,
+  children,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (on: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mz-inset flex items-start gap-3 p-3">
+      <div className="min-w-0 flex-1">
+        <label htmlFor={id} className="text-[0.8125rem] font-semibold">
+          {label}
+        </label>
+        <p className="mt-0.5 text-xs text-(--mz-text-muted)">{children}</p>
+      </div>
+      <input
+        id={id}
+        type="checkbox"
+        role="switch"
+        className="mz-switch mt-0.5"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+    </div>
   );
 }

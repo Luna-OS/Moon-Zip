@@ -2,7 +2,8 @@ import { useEffect, useId, useState } from "react";
 import { dirname } from "../../lib/paths";
 import type { OverwriteMode } from "../../lib/types";
 import { ExtractIcon } from "../../theme/icons";
-import { useBridge } from "../context";
+import { useBridge, usePrefs } from "../context";
+import { explorerName, useMoonExplorer } from "../useMoonExplorer";
 import { Dialog, OptionGroup, PasswordField } from "./Dialog";
 
 export interface ExtractChoice {
@@ -39,7 +40,9 @@ export function ExtractDialog({
   const [ownFolder, setOwnFolder] = useState("");
   const [overwrite, setOverwrite] = useState<OverwriteMode>("rename");
   const [password, setPassword] = useState("");
-  const [openAfter, setOpenAfter] = useState(true);
+  const { prefs } = usePrefs();
+  const moonExplorer = useMoonExplorer();
+  const [openAfter, setOpenAfter] = useState(prefs.showAfterExtract);
   const next = dirname(archive);
 
   useEffect(() => {
@@ -160,7 +163,7 @@ export function ExtractDialog({
             checked={openAfter}
             onChange={(e) => setOpenAfter(e.target.checked)}
           />
-          Show the files when they're out
+          Show the files in {explorerName(moonExplorer.active)} when they're out
         </label>
       </form>
     </Dialog>
