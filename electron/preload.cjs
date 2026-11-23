@@ -37,6 +37,7 @@ const bridge = {
   list: (archive, password) => call("archive:list", archive, password),
   openEntry: (opts) => call("archive:openEntry", opts),
   folderFor: (archive) => call("archive:folderFor", archive),
+  groupParts: (paths) => call("archive:groupParts", paths),
   suggestName: (paths, ext) => call("archive:suggestName", paths, ext),
 
   extract: (id, opts) => call("job:extract", id, opts),

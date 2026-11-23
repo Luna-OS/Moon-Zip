@@ -288,3 +288,30 @@ describe("Moon Explorer", () => {
     ).toBeChecked();
   });
 });
+
+describe("archives in parts", () => {
+  it("any part opens the whole archive through its first part", async () => {
+    render(
+      <App
+        bridge={bridge({ start: { kind: "open", path: `${DEMO_ARCHIVES.parts}.part3.rar` } })}
+      />,
+    );
+    const grid = await screen.findByRole("grid", { name: "Archive contents" });
+    expect(within(grid).getByText("Moon game")).toBeInTheDocument();
+    expect(screen.getByText("5 parts")).toBeInTheDocument();
+    expect(screen.getByText("Read-only")).toBeInTheDocument();
+    expect(screen.getByRole("banner")).toHaveTextContent("Moon game.part1.rar");
+    expect(JSON.parse(localStorage.getItem("moon-zip:recent")!)).toEqual([
+      `${DEMO_ARCHIVES.parts}.part1.rar`,
+    ]);
+  });
+
+  it("dropping all the parts on the start page opens the archive instead of packing them", async () => {
+    render(<App bridge={bridge()} />);
+    const zone = (await screen.findByText("Drop an archive here to open it")).parentElement!;
+    const files = [2, 1, 3, 4, 5].map((n) => new File(["x"], `Moon game.part${n}.rar`));
+    fireEvent.drop(zone, { dataTransfer: { files } });
+    expect(await screen.findByText("5 parts")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});

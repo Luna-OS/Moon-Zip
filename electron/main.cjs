@@ -102,7 +102,11 @@ function idleArchiveWindow() {
 }
 
 /** Handles one (batched) start request: a window per archive, a task window per action. */
+/** Actions that read archives: the parts of one archive (name.part1.rar …) count as one. */
+const ARCHIVE_ACTIONS = new Set(["open", "extract-here", "extract-to-folder", "extract", "test"]);
+
 function handleStart({ action, paths }) {
+  if (ARCHIVE_ACTIONS.has(action)) paths = engine.groupParts(paths);
   if (action === "home") {
     const win = BrowserWindow.getAllWindows()[0];
     if (win) {
@@ -262,6 +266,7 @@ function registerIpc() {
     return path.join(dir, path.basename(entryPath));
   });
   handle("archive:folderFor", (_e, archive) => engine.folderFor(archive));
+  handle("archive:groupParts", (_e, paths) => engine.groupParts(paths));
   handle("archive:suggestName", (_e, paths, ext) => {
     const dir = path.dirname(paths[0]);
     const one = path.basename(paths[0]);

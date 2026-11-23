@@ -144,6 +144,21 @@ function sampleArchives(): Map<string, DemoArchive> {
         encryptedHeaders: true,
       },
     ],
+    // An archive in five parts; any of Moon game.part1.rar … part5.rar opens it.
+    [
+      `${DOWNLOADS}\\Moon game.part1.rar`,
+      {
+        listing: {
+          archive: { ...info("Rar5", 5 * 1_073_741_824, "v6:128M:m3", true), volumes: 5 },
+          entries: [
+            dir("Moon game", "2026-10-20T18:00:00"),
+            file("Moon game/Game.exe", 48_211_004, 0.6, "2026-10-20T18:00:00"),
+            file("Moon game/data.pak", 6_120_448_000, 0.86, "2026-10-20T18:00:00"),
+            file("Moon game/README.txt", 2_412, 0.4, "2026-10-20T18:00:00"),
+          ],
+        },
+      },
+    ],
   ]);
 }
 
@@ -236,8 +251,13 @@ export class DemoBridge implements MoonZipBridge {
     }
   }
 
+  /** The first part for any part of an archive in parts, as the real engine resolves it. */
+  private firstPart(archive: string): string {
+    return archive.replace(/\.part\d+\.rar$/i, ".part1.rar");
+  }
+
   private get(archive: string): DemoArchive {
-    const a = this.archives.get(archive);
+    const a = this.archives.get(this.firstPart(archive));
     if (!a)
       throw coded("This file isn't an archive Moon Zip can open, or it is damaged.", "ENOTARCHIVE");
     return a;
@@ -276,7 +296,9 @@ export class DemoBridge implements MoonZipBridge {
     return later(() => {
       const a = this.get(archive);
       if (a.encryptedHeaders) this.checkPassword(a, password);
-      return structuredClone(a.listing);
+      const listing = structuredClone(a.listing);
+      listing.archive.path = this.firstPart(archive);
+      return listing;
     });
   }
 
@@ -291,6 +313,10 @@ export class DemoBridge implements MoonZipBridge {
 
   folderFor(archive: string) {
     return Promise.resolve(join(dirname(archive), basename(archive).replace(/\.[^.]+$/, "")));
+  }
+
+  groupParts(paths: string[]) {
+    return Promise.resolve([...new Set(paths.map((p) => this.firstPart(p)))]);
   }
 
   suggestName(paths: string[], ext: string) {
@@ -520,4 +546,6 @@ export const DEMO_ARCHIVES = {
   photos: `${DOWNLOADS}\\Moon photos.7z`,
   project: `${DOWNLOADS}\\moon-app.zip`,
   secret: `${DOWNLOADS}\\Secret.7z`,
+  /** Five parts: `${parts}.part1.rar` … `.part5.rar`. */
+  parts: `${DOWNLOADS}\\Moon game`,
 };

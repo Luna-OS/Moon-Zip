@@ -149,14 +149,21 @@ export function ArchiveWindow({
 
   const openArchive = useCallback(
     async (
-      path: string,
-      { parent = null, name = basename(path) }: { parent?: Opened | null; name?: string } = {},
+      picked: string,
+      { parent = null, name: givenName }: { parent?: Opened | null; name?: string } = {},
     ) => {
+      let path = picked;
+      let name = givenName ?? basename(picked);
       let password: string | undefined;
       let needed = false;
       for (;;) {
         try {
           const listing = await bridge.list(path, password);
+          // Any part of an archive in parts opens the whole archive, through its first part.
+          if (listing.archive.path && listing.archive.path !== path) {
+            path = listing.archive.path;
+            if (!givenName) name = basename(path);
+          }
           const type = listing.archive.type.toLowerCase();
           setOpened({
             path,
@@ -444,10 +451,12 @@ export function ArchiveWindow({
   async function dropOnHome(files: File[]) {
     const paths = files.map((f) => bridge.pathForFile(f)).filter(Boolean);
     if (!paths.length) return;
-    if (paths.length === 1 && isArchiveName(paths[0])) {
-      const [item] = await bridge.stat(paths);
-      if (!item?.isDir) {
-        void openArchive(paths[0]);
+    // One archive, or all the parts of one (name.part1.rar …), opens; anything else is packed.
+    if (paths.every((p) => isArchiveName(p))) {
+      const items = await bridge.stat(paths);
+      const archives = items.some((i) => i.isDir) ? [] : await bridge.groupParts(paths);
+      if (archives.length === 1) {
+        void openArchive(archives[0]);
         return;
       }
     }
@@ -618,6 +627,11 @@ export function ArchiveWindow({
             {encrypted && (
               <span className="mz-chip mz-chip-warning">
                 <LockIcon size={10} /> Encrypted
+              </span>
+            )}
+            {(opened.listing.archive.volumes ?? 1) > 1 && (
+              <span className="mz-chip" title="This archive is split into several files">
+                {opened.listing.archive.volumes} parts
               </span>
             )}
             {opened.readOnly && <span className="mz-chip mz-chip-muted">Read-only</span>}

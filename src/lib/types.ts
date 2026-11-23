@@ -22,9 +22,12 @@ export interface ArchiveInfo {
   method: string;
   solid: boolean | null;
   blocks: number | null;
+  /** How many parts the archive has (name.part1.rar …), null or 1 for a single file. */
   volumes: number | null;
   comment: string;
   warnings: string[];
+  /** The file that was opened: the first part, whichever part was picked. */
+  path?: string;
 }
 
 export interface Listing {
@@ -131,6 +134,8 @@ export interface MoonZipBridge {
   list(archive: string, password?: string): Promise<Listing>;
   openEntry(opts: { archive: string; path: string; password?: string }): Promise<string>;
   folderFor(archive: string): Promise<string>;
+  /** The paths with the parts of one archive merged into its first part (electron/engine/volumes.cjs). */
+  groupParts(paths: string[]): Promise<string[]>;
   suggestName(paths: string[], ext: string): Promise<string>;
 
   extract(id: string, opts: ExtractRequest): Promise<{ destDir: string; warnings: string }>;

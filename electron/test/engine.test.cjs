@@ -129,6 +129,73 @@ test("tar.gz goes through the pipe", opts, async () => {
   assert.equal(entries[0].path, "box.tar");
 });
 
+test("an archive in parts opens, tests and extracts through any of its parts", opts, async () => {
+  const dir = path.join(tmp, "parts");
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(tmp, "big.bin"), require("crypto").randomBytes(300 * 1024));
+  await engine.create({
+    archive: path.join(dir, "Game.7z"),
+    sources: [path.join(tmp, "big.bin"), src("a.txt")],
+    format: "7z",
+    options: { volumeSize: "100k" },
+  });
+  const parts = fs.readdirSync(dir).sort();
+  assert.deepEqual(parts, ["Game.7z.001", "Game.7z.002", "Game.7z.003", "Game.7z.004"]);
+
+  const third = path.join(dir, "Game.7z.003");
+  const { archive, entries } = await engine.list(third);
+  assert.equal(archive.path, path.join(dir, "Game.7z.001"));
+  assert.equal(archive.volumes, 4);
+  assert.equal(
+    archive.physicalSize,
+    parts.reduce((n, p) => n + fs.statSync(path.join(dir, p)).size, 0),
+  );
+  assert.deepEqual(entries.map((e) => e.path).sort(), ["a.txt", "big.bin"]);
+
+  await engine.test(third);
+  await engine.extract({ archive: third, destDir: path.join(tmp, "parts-out") });
+  assert.deepEqual(
+    fs.readFileSync(path.join(tmp, "parts-out", "big.bin")),
+    fs.readFileSync(path.join(tmp, "big.bin")),
+  );
+  assert.equal(await engine.folderFor(path.join(dir, "Game.7z.001")), path.join(dir, "Game"));
+  assert.deepEqual(engine.groupParts(parts.map((p) => path.join(dir, p))), [
+    path.join(dir, "Game.7z.001"),
+  ]);
+});
+
+test("missing parts are reported by name, or as an archive that ends too early", opts, async () => {
+  const dir = path.join(tmp, "parts");
+  const gap = path.join(tmp, "gap");
+  const short = path.join(tmp, "short");
+  fs.mkdirSync(gap);
+  fs.mkdirSync(short);
+  for (const n of ["001", "002", "004"])
+    fs.copyFileSync(path.join(dir, `Game.7z.${n}`), path.join(gap, `Game.7z.${n}`));
+  for (const n of ["001", "002", "003"])
+    fs.copyFileSync(path.join(dir, `Game.7z.${n}`), path.join(short, `Game.7z.${n}`));
+
+  await assert.rejects(engine.list(path.join(gap, "Game.7z.004")), {
+    code: "EMISSINGPART",
+    message: /A part of this archive is missing: Game\.7z\.003\./,
+  });
+  await assert.rejects(
+    engine.extract({ archive: path.join(gap, "Game.7z.001"), destDir: path.join(tmp, "gap-out") }),
+    {
+      code: "EMISSINGPART",
+    },
+  );
+  assert.equal(
+    fs.existsSync(path.join(tmp, "gap-out")),
+    false,
+    "nothing is created for an incomplete set",
+  );
+  await assert.rejects(engine.list(path.join(short, "Game.7z.001")), {
+    code: "EMISSINGPART",
+    message: /ends too early.*\(3 found\)/,
+  });
+});
+
 test("a file that isn't an archive says so", opts, async () => {
   await assert.rejects(engine.list(src("a.txt")), { code: "ENOTARCHIVE" });
 });

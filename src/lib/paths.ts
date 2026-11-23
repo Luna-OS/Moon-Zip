@@ -21,7 +21,7 @@ export function join(dir: string, name: string): string {
 /** "photos.tar.gz" → "photos", "notes.zip" → "notes", "disk.7z.001" → "disk". */
 export function stripArchiveExtension(name: string): string {
   const stripped = name.replace(
-    /\.(tar\.(gz|xz|bz2|zst)|tgz|tbz2?|txz|7z\.\d{3}|zip\.\d{3}|part\d+\.rar|[^.]+)$/i,
+    /\.(tar\.(gz|xz|bz2|zst)|tgz|tbz2?|txz|(7z|zip|rar|tar)\.\d{3}|part\d+\.rar|[^.]+)$/i,
     "",
   );
   return stripped || name;
