@@ -11,6 +11,9 @@ real 7-Zip inside, a calm night-sky app outside.
 - **Opens** 7z, ZIP, RAR, TAR, GZ, XZ, BZ2, ZST, ISO, CAB, WIM, DMG, DEB, RPM and 40 more formats
   (everything 7-Zip 26.03 reads), split archives (`.001`) included. A double-click on an archive
   inside an archive opens that one too.
+- **Archives in parts** (`name.part1.rar` … `name.part5.rar`, `name.7z.001` …, `.r00`, `.z01`)
+  count as one archive: any part opens it, selecting all the parts extracts once, and missing parts
+  are named. See [docs/multi-part.md](docs/multi-part.md).
 - **Creates** 7z, ZIP, tar, tar.gz, tar.xz and tar.bz2, with six compression levels, the method of
   your choice, AES-256 passwords (7z can hide the file names too) and splitting into volumes.
 - **Changes** 7z, ZIP, tar and WIM archives in place: add files (also by dropping them on the

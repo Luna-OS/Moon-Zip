@@ -45,7 +45,7 @@ export function InfoDialog({
     ["Encrypted", encrypted ? (passwordProtected ? "Yes, names included" : "Yes") : "No"],
     ["Newest item", newest ? formatDate(newest.mtime) : "—"],
   ];
-  if (a.volumes) rows.push(["Volumes", String(a.volumes)]);
+  if (a.volumes && a.volumes > 1) rows.push(["Parts", `${a.volumes} files, read as one archive`]);
   return (
     <Dialog eyebrow="Archive info" title={basename(path)} onClose={onClose} width="max-w-xl">
       <div className="mz-inset mb-4 flex items-center gap-4 p-4">

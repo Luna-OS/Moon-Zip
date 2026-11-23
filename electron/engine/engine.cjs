@@ -11,6 +11,7 @@ const os = require("os");
 const path = require("path");
 const zlib = require("zlib");
 const args = require("./args.cjs");
+const volumes = require("./volumes.cjs");
 const { parseListing, parseProgress, errorText, classifyFailure } = require("./listing.cjs");
 
 const ROOT = path.join(__dirname, "..", "..");
@@ -118,24 +119,75 @@ function run(argv, { onProgress, token, cwd, passwordGiven = false, stdin, stdou
         ENOTARCHIVE: "This file isn't an archive Moon Zip can open, or it is damaged.",
       };
       const detail = errorText(all) || lastLines(err);
-      reject(fail(messages[kind] || detail || `7-Zip stopped with code ${code}.`, kind || "E7ZIP"));
+      const failure = fail(
+        messages[kind] || detail || `7-Zip stopped with code ${code}.`,
+        kind || "E7ZIP",
+      );
+      // Everything 7-Zip said, for callers that look for more than the error lines.
+      failure.output = all;
+      reject(failure);
     });
   });
 }
 
 // ---------------------------------------------------------------- reading
 
+/**
+ * An archive in several parts (name.part1.rar …, name.7z.001 …; volumes.cjs) is always read
+ * through its first part, whichever part was picked. Returns { file, set }: the file to give to
+ * 7-Zip and the set (null for a plain archive). Fails with EMISSINGPART, naming the parts, when
+ * some are not in the folder.
+ */
+function resolveParts(archive) {
+  const set = volumes.inspect(archive);
+  if (!set) return { file: archive, set: null };
+  if (set.missing.length) throw fail(volumes.missingMessage(set.missing), "EMISSINGPART");
+  return { file: set.first, set };
+}
+
+const ENDS_EARLY = /Unexpected end of (archive|data)|Missing volume/i;
+const endsEarly = (set) =>
+  fail(
+    `This archive ends too early: its last parts seem to be missing (${set.parts.length} found). ` +
+      "Put all parts in the same folder and try again.",
+    "EMISSINGPART",
+  );
+
+/**
+ * Runs a reading command on an archive that may be in parts. When 7-Zip finds the data ending too
+ * early, the last parts are missing (nothing in the names says how many there should be).
+ */
+async function runOnParts(set, argv, options) {
+  try {
+    return await run(argv, options);
+  } catch (e) {
+    if (set && e.code !== "ECANCELLED" && ENDS_EARLY.test(`${e.message}\n${e.output || ""}`))
+      throw endsEarly(set);
+    throw e;
+  }
+}
+
 async function list(archive, password) {
-  const { stdout, warnings } = await run(args.listArgs(archive, password), {
+  const { file, set } = resolveParts(archive);
+  const { stdout, warnings } = await runOnParts(set, args.listArgs(file, password), {
     passwordGiven: !!password,
   });
   const result = parseListing(stdout);
   if (warnings) result.archive.warnings.push(warnings);
+  // The file that was opened (the first part), and for a set all its parts together.
+  result.archive.path = file;
+  if (set) {
+    result.archive.volumes = set.parts.length;
+    result.archive.physicalSize = set.size;
+  }
+  // 7-Zip lists a set that is cut short as an empty archive with an error line.
+  if (set && !result.entries.length && ENDS_EARLY.test(stdout)) throw endsEarly(set);
   return result;
 }
 
 async function test(archive, { password, onProgress, token } = {}) {
-  const { warnings } = await run(args.testArgs(archive, password), {
+  const { file, set } = resolveParts(archive);
+  const { warnings } = await runOnParts(set, args.testArgs(file, password), {
     onProgress,
     token,
     passwordGiven: !!password,
@@ -194,10 +246,13 @@ async function extract(
   { archive, destDir, paths = [], stripPrefix = "", password, overwrite = "overwrite" },
   { onProgress, token } = {},
 ) {
+  const parts = resolveParts(archive);
+  archive = parts.file;
   await fsp.mkdir(destDir, { recursive: true });
   const prefix = stripPrefix.replace(/^\/+|\/+$/g, "");
   if (!prefix) {
-    const { warnings } = await run(
+    const { warnings } = await runOnParts(
+      parts.set,
       args.extractArgs(archive, destDir, { password, paths, overwrite }),
       {
         onProgress,
@@ -209,7 +264,8 @@ async function extract(
   }
   const staging = path.join(destDir, `.moon-zip-${crypto.randomBytes(4).toString("hex")}`);
   try {
-    const { warnings } = await run(
+    const { warnings } = await runOnParts(
+      parts.set,
       args.extractArgs(archive, staging, { password, paths, overwrite: "overwrite" }),
       {
         onProgress,
@@ -233,7 +289,7 @@ async function folderFor(archive) {
   let name = path.basename(archive);
   name =
     name.replace(
-      /\.(tar\.(gz|xz|bz2|zst)|tgz|tbz2?|txz|7z\.\d{3}|zip\.\d{3}|part\d+\.rar|[^.]+)$/i,
+      /\.(tar\.(gz|xz|bz2|zst)|tgz|tbz2?|txz|(7z|zip|rar|tar)\.\d{3}|part\d+\.rar|[^.]+)$/i,
       "",
     ) || name;
   if (!(await exists(path.join(dir, name)))) return path.join(dir, name);
@@ -438,4 +494,5 @@ module.exports = {
   checksums,
   HASHES: Object.keys(HASHES),
   CREATE_FORMATS: args.CREATE_FORMATS,
+  groupParts: volumes.group,
 };

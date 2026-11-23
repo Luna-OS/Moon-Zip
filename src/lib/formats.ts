@@ -10,7 +10,8 @@ export const ARCHIVE_EXTENSIONS = new Set(
 
 export function isArchiveName(name: string): boolean {
   const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
-  return ARCHIVE_EXTENSIONS.has(ext);
+  // name.r00 and name.z01 are parts of an old-style RAR set and of a split ZIP.
+  return ARCHIVE_EXTENSIONS.has(ext) || /^[rz]\d{2}$/.test(ext);
 }
 
 export interface FormatInfo {
